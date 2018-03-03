@@ -26,18 +26,30 @@ var _ = require('underscore'),
     Blocks = require('../core/blocks.js'),
     Exec = require('../core/exec.js'),
     Msg = require('../core/msg.js'),
+    Storage = require('../core/storage.js'),
     ResourcesToPatterns = require('../core/resourcesToPatterns.js'),
     SparqlGen = require('../generators/sparql.js'),
     FileSaver = require('browser-filesaver'),
-    JsonToBlocks = require('../core/jsonToBlocks.js');
+    fs = require('fs'),
+    JsonToBlocks = require('../core/jsonToBlocks.js'),
+    $ = require('jquery'),
+    exportSvg = require('../core/exportSvg');
 
 require('blob-polyfill');
+/*var svgPreamble = fs.readFileSync(__dirname + '/../../resources/svg/_preamble.svg', 'utf8');
+var svgAfterDefs = fs.readFileSync(__dirname + '/../../resources/svg/_afterDefs.svg', 'utf8');
+var svgAfterStyleForStatement =
+    fs.readFileSync(__dirname + '/../../resources/svg/_afterStyleForStatement.svg', 'utf8');
+var svgAfterStyleForValue =
+    fs.readFileSync(__dirname + '/../../resources/svg/_afterStyleForValue.svg', 'utf8');
+var svgEpilogue = fs.readFileSync(__dirname + '/../../resources/svg/_epilogue.svg', 'utf8');*/
 
 var typeExt = Types.getExtension;
 
+
 var defaultLimit = 5;
 var maxLimit = 50;
-
+var queryBlock;
 var execBlock = function(options) {
   options = _.extend({}, options);
   return {
@@ -159,6 +171,7 @@ var execBlock = function(options) {
               }
           } else {
             Exec.blockExec(this, options.extraColumns, this, this.resultsInput);
+            queryBlock = this;
           }
         }
       }
@@ -176,8 +189,13 @@ var execBlock = function(options) {
      */
     domToMutation: Blocks.query.orderFields.domToMutation,
     customContextMenu: function(options) {
-      var thisBlock = this;
-      if (this.sparqlQueryStr) {
+       var thisBlock = this;
+      if (this.sparqlQueryStr)
+      {
+          if (this.resultsData)
+          {
+              var svg = exportSvg.svg1(thisBlock);
+        Storage.linkGist1(thisBlock.sparqlQueryStr,thisBlock.resultsData,svg);
         Blocks.insertOptionBeforeHelp(options, {
           text: "Save Query as SPARQL",
           enabled: true,
@@ -193,6 +211,7 @@ var execBlock = function(options) {
             }
           }
         });
+
         Blocks.insertOptionBeforeHelp(options, {
           text: "Open Query in YASGUI",
           enabled: true,
@@ -215,6 +234,28 @@ var execBlock = function(options) {
             }
           }
         });
+
+         Blocks.insertOptionBeforeHelp(options, {
+                text: "Dispaly Query&Results in HTML+SVG",
+                enabled: true,
+                callback: function () {
+
+                   var jsonString = JSON.stringify(thisBlock.resultsData);
+                   var svg = exportSvg.svg1(thisBlock);  // calling a fuction from ExportSvg for showing visual query in HTML
+                        // calling a function from Strorage for having the dataID for " link to dynamic query".
+
+
+                   // var dataID = getGistid();
+                   var dataID = Storage.linkGist2();
+                    //var blocksvg = [thisBlock.svgPreamble, thisBlock.defDisabledSvg, thisBlock.svgAfterDefs, thisBlock.style, thisBlock.svgAfterStyle, thisBlock.blockSvg, thisBlock.svgEpilogue];
+                    var htmlUrl =
+                        "/gist?gistID="  + encodeURIComponent(dataID);
+
+                    window.open(htmlUrl, '_blank');
+
+                }
+            });
+      }
       }
       if (this.resultsData) {
         Blocks.insertOptionBeforeHelp(options, {
@@ -547,3 +588,4 @@ Blocks.block('sparql_execution_error', {
     this.setEditable(false);
   }
 });
+
