@@ -26,7 +26,11 @@ var Blockly = require('blockly'),
     TestBlocks = require('../blocks/test.js'),
     packageJson = require('../../package.json'),
     Clipboard = require('clipboard'),
-    MessageDisplay = require('./messageDisplay.js');
+    xmlserializer = require('xmlserializer'),
+    MessageDisplay = require('./messageDisplay.js'),
+ DomParser = require('dom-parser'),
+ crypto = require('crypto'),
+ moment = require('moment');
 
 var HTTPREQUEST_ERROR = 'There was a problem with the request.\n';
 var LINK_ALERT = 'Share your blocks with this link:\n\n%1';
@@ -35,7 +39,9 @@ var LINK_ALERT_GITHUB = 'Share your blocks with this link:\n\n%1' +
 var HASH_ERROR = 'Sorry, "%1" doesn\'t correspond with any saved Blockly file.';
 var XML_ERROR = 'Could not load your saved file.\n'+
     'Perhaps it was created with a different version of Blockly?';
-
+ // creating the global variable for sending to Exec file from linkGist1 function
+var dataID1;
+var dataID2;
 /**
   * Backup code blocks to localStorage.
   * @param {!Blockly.WorkspaceSvg} workspace Workspace.
@@ -83,6 +89,7 @@ var linkGist = function(opt_workspace, callback) {
   var xml = Blockly.Xml.workspaceToDom(workspace);
   var data = Blockly.Xml.domToPrettyText(xml);
   var testState = TestBlocks && TestBlocks.getState();
+
   var metaData = _.extend(
     {
       generator: "SparqlBlocks",
@@ -125,6 +132,9 @@ var linkGist = function(opt_workspace, callback) {
     url: "https://api.github.com/gists",
     success: function(data) {
       window.location.hash = "gist:" + data.id;
+    dataID1 = data.id;
+      //adding local variable to gblobal variable
+
       if (Blockly.Events.isEnabled()) {
         var saveEvent = new Blockly.Events.Abstract(null);
         saveEvent.type = "save-snapshot";
@@ -154,8 +164,90 @@ var linkGist = function(opt_workspace, callback) {
         callback(errorThrown);
     }
   });
-};
 
+};
+var linkGist1 = function(sparqlQueryStr,resultsData,svg){
+  //var xml = Blockly.Xml.blockToDom(block);
+ // var data = Blockly.Xml.domToText(xml);
+var sparqlQueryStr = sparqlQueryStr;
+  var  hash = crypto.createHash('sha256').update(sparqlQueryStr).digest('hex');
+var jsonString = JSON.stringify(resultsData);
+var SVG = svg;
+var svgStr =  JSON.stringify(SVG);
+var timeStamp = $.now();
+    var time = moment(timeStamp).format("DD-MM-YYYY hh:mm:ss");
+  // var dateFrom = moment(timeStamp).subtract(3,'d').format("DD-MM-YYYY hh:mm:ss");
+
+    var metaData = _.extend(
+        {
+            generator: "SparqlBlocks",
+            version: packageJson.version,
+            baseURI: location.href,
+            timestamp: timeStamp,
+            queryfile: "query.rq",
+            resultsjsonfile:"results.json",
+            svgfile:"visualblock.svg"
+        });
+    makeRequest_({
+        dataType: "json",
+        method: "POST",
+        data: JSON.stringify({
+            "files": _.extend({
+                "metaData.json": {
+                    content: JSON.stringify(metaData)
+                },
+                "query.rq": {
+                    content: sparqlQueryStr
+                },
+                "results.json":{
+                    content: jsonString
+                },
+                "visualblock.svg":{
+                    content: svgStr
+                }
+            })
+        }),
+        url: "https://api.github.com/gists" ,
+        success: function(data) {
+            dataID2 = data.id;
+          // var data = { dataID:dataID2};
+            //dataID2 = data.id;
+            if ('localStorage' in window) {
+              var sparqlQueResGist = [sparqlQueryStr, jsonString,SVG,dataID1,timeStamp];
+               localStorage.setItem(dataID2, JSON.stringify(sparqlQueResGist));
+                //console.log(SVG);
+            }
+           // var htmlUrl =
+              //  "/gist?gistID="  + encodeURIComponent(dataID);
+
+            //window.open(htmlUrl, '_blank');
+            makeRequest_({
+                    dataType: "json",
+                    method: "POST",
+                    data: {queryHash:hash,dataid:dataID2,timestamp:time,sparqlQueryString:sparqlQueryStr,jsonString:jsonString,svg:SVG,dataid1:dataID1},
+                    url: "/query",
+                success: function(data) {
+                      console.log('success');
+                },
+                    error: function(jqXHR, textStatus, err) {
+                        console.log('error is');
+                    }
+        }) },
+        error: function(jqXHR, textStatus, errorThrown) {
+            var errorDescr = jqXHR.responseText;
+            if (!errorDescr) {
+                errorDescr = "Connection Error!";
+                console.log(errorDescr);
+                dataID = errorDescr;
+            }
+
+        }
+    });
+};
+var linkGist2 = function()
+{
+  return dataID2;
+};
 var setCopyOnThisButton = function(selector) {
   var cb = new Clipboard(selector, {
         text: function(trigger) {
@@ -369,6 +461,8 @@ module.exports = {
   backupOnUnload: backupOnUnload,
   restoreBlocks: restoreBlocks,
   linkGist: linkGist,
+  linkGist1:linkGist1,
+    linkGist2:linkGist2,
   linkGistAndAlert: linkGistAndAlert,
   retrieveXml: retrieveXml,
   startup: startup,
