@@ -16,7 +16,7 @@ python -m SimpleHTTPServer 8080
 
 and then open http://localhost:8080/.
 
-Alternatively, you can use the nodejs server in [SparqlBlocks-Server](https://github.com/miguel76/SparqlBlocks-Server) that offers also logging capability.
+Alternatively, you can use the nodejs server in [SparqlBlocks-Server](https://github.com/sreedharbanagari1/SparqlBlocks-Server) that offers also logging capability.
 
 ## Contributing
 
